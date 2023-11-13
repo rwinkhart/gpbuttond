@@ -17,7 +17,7 @@ var pinMap [10][2]int
 var exitChannel = make(chan bool)
 
 // create virtual uinput keyboard for simulating keystrokes
-var kbd, _ = uinput.CreateKeyboard("/dev/uinput", []byte("ttypodvirtualkbd"))
+var kbd, _ = uinput.CreateKeyboard("/dev/uinput", []byte("gpbuttondvirtualkbd"))
 
 // meant to run as a Go routine (launched from eventHandler) - repeats keystroke until GPIO button is no longer held down
 func routineHold(keycode int, inputChannel <-chan bool) {
