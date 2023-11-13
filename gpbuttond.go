@@ -20,8 +20,10 @@ var pinRight = 5
 // create channel for signaling end of routineHold
 var exitChannel = make(chan bool)
 
+// create virtual uinput keyboard for simulating keystrokes
 var kbd, _ = uinput.CreateKeyboard("/dev/uinput", []byte("ttypodvirtualkbd"))
 
+// meant to run as a Go routine (launched from eventHandler) - repeats keystroke until GPIO button is no longer held down
 func routineHold(offset int, inputChannel <-chan bool) {
 	for {
 		select {
@@ -30,19 +32,15 @@ func routineHold(offset int, inputChannel <-chan bool) {
 		default:
 			switch offset {
 			case pinUp:
-				//println("up")
 				kbd.KeyPress(uinput.KeyUp)
 				time.Sleep(150 * time.Millisecond)
 			case pinDown:
-				//println("down")
 				kbd.KeyPress(uinput.KeyDown)
 				time.Sleep(150 * time.Millisecond)
 			case pinLeft:
-				//println("left")
 				kbd.KeyPress(uinput.KeyLeft)
 				time.Sleep(150 * time.Millisecond)
 			case pinRight:
-				//println("right")
 				kbd.KeyPress(uinput.KeyEnter)
 				time.Sleep(150 * time.Millisecond)
 			}
@@ -50,23 +48,25 @@ func routineHold(offset int, inputChannel <-chan bool) {
 	}
 }
 
+// called whenever a GPIO event is detected on a watched line - uses routineHold as a Go routine to repeat keystrokes for as long as buttons are held down
 func eventHandler(offset int) func(_ gpiod.LineEvent) {
 	return func(evt gpiod.LineEvent) {
-
 		if evt.Type == gpiod.LineEventRisingEdge { // button release
+			// send signal to exit Go routine (stops repeating keystrokes)
 			exitChannel <- true
 
 		} else if evt.Type == gpiod.LineEventFallingEdge { // button press
+			// launch Go routine to repeat keystrokes until a LineEventRisingEdge event is received
 			go routineHold(offset, exitChannel)
 		}
 	}
 }
 
 func main() {
-	// safely close virtual keyboard after program exits
+	// ensure closure of keyboard after program exits
 	defer kbd.Close()
 
-	// begin edge detection
+	// begin edge detection - will call eventHandler whenever a watched GPIO line changes state
 	lineUp, _ := gpiod.RequestLine("gpiochip0", pinUp, gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinUp)))
 	defer lineUp.Close()
 	lineDown, _ := gpiod.RequestLine("gpiochip0", pinDown, gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinDown)))
