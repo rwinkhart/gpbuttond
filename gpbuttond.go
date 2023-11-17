@@ -116,7 +116,7 @@ func main() {
 		lineMap[i] = [2]int{intConvert[0], intConvert[1]}
 	}
 
-	// debounce timer configuration (time button must be held before it is registered as a keypress, in milliseconds)
+	// debounce timer configuration (time button must be held before it is registered as a keystroke, in milliseconds)
 	var mapEnv2, mapPresent2 = os.LookupEnv("GPBD_DEBOUNCE")
 	var debounceDuration time.Duration
 	if mapPresent2 {

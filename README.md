@@ -11,3 +11,5 @@ For launching gpbuttond, I recommend using OpenRC and placing the included `15gp
 
 # Important!
 gpbuttond relies on the `uinput` kernel module to create its virtual keyboard. Ensure this kernel module is loaded, otherwise gpbuttond _**will error out**_ on startup.
+
+gpbuttond will need to be run as root on most systems.
