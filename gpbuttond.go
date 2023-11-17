@@ -11,7 +11,7 @@ import (
 )
 
 // TODO EDIT HERE TO ADD MORE BUTTONS (1/2, scroll down for second edit zone)
-const buttonCount = 10
+const buttonCount = 17
 
 // TODO END EDIT ZONE (1/2, scroll down for second edit zone)
 
@@ -119,6 +119,27 @@ func main() {
 		case 10:
 			line10, _ := gpiod.RequestLine("gpiochip0", pinMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinMap[i][1])))
 			defer line10.Close()
+		case 11:
+			line11, _ := gpiod.RequestLine("gpiochip0", pinMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinMap[i][1])))
+			defer line11.Close()
+		case 12:
+			line12, _ := gpiod.RequestLine("gpiochip0", pinMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinMap[i][1])))
+			defer line12.Close()
+		case 13:
+			line13, _ := gpiod.RequestLine("gpiochip0", pinMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinMap[i][1])))
+			defer line13.Close()
+		case 14:
+			line14, _ := gpiod.RequestLine("gpiochip0", pinMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinMap[i][1])))
+			defer line14.Close()
+		case 15:
+			line15, _ := gpiod.RequestLine("gpiochip0", pinMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinMap[i][1])))
+			defer line15.Close()
+		case 16:
+			line16, _ := gpiod.RequestLine("gpiochip0", pinMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinMap[i][1])))
+			defer line16.Close()
+		case 17:
+			line17, _ := gpiod.RequestLine("gpiochip0", pinMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinMap[i][1])))
+			defer line17.Close()
 			// TODO EDIT HERE TO ADD MORE BUTTONS (2/2)
 			// TODO END EDIT ZONE (2/2)
 		}
