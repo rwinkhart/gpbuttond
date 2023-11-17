@@ -10,6 +10,11 @@ import (
 	"time"
 )
 
+// TODO EDIT HERE TO ADD MORE BUTTONS (1/2, scroll down for second edit zone)
+const buttonCount = 10
+
+// TODO END EDIT ZONE (1/2, scroll down for second edit zone)
+
 // pin to key mapping, global
 var pinMap [10][2]int
 
@@ -60,7 +65,16 @@ func main() {
 		mapEnvSplit = strings.Split(mapEnv, ",")
 		pairCount = len(mapEnvSplit)
 	} else {
-		fmt.Println("Error: no pairings provided - see \"gpbuttond help\"\n\nNOTE THAT \"gpbuttond help\" FUNCTIONALITY HAS NOT YET BEEN ADDED AND YOU ARE USING AN UNTAGGED RELEASE")
+		fmt.Printf("\nError: No pairings provided!\n\n"+
+			"GPIO pins must be mapped to keycodes through the setting of the GPBD_MAP environment variable.\n"+
+			"The keycode for any given key can be found by using the widely available \"showkey\" command in a raw TTY.\n\n"+
+			"The format for setting GPBD_MAP is as follows:\n"+
+			"export GPBD_MAP=<GPIO pin #>:<decimal keycode>,<GPIO pin #>:<decimal keycode>, etc.\n\n"+
+			"Example:\n"+
+			"export GPBD_MAP=19:103,6:108,26:105,5:28\n\n"+
+			"Note that this compiled version of gpbuttond only supports a maximum of %d pairings.\n"+
+			"More can be easily added through simple modification of the source code.\n"+
+			"The lines to edit are clearly marked with \"// TODO\" comments.\n\n", buttonCount)
 		os.Exit(1)
 	}
 
@@ -73,9 +87,6 @@ func main() {
 	}
 
 	// begin edge detection - will call eventHandler whenever a watched GPIO line changes state
-	// TODO EDIT HERE TO ADD MORE BUTTONS (1/2)
-	const buttonCount = 10
-	// TODO END EDIT ZONE (1/2)
 	for i := 0; i < min(pairCount, buttonCount); i++ {
 		switch i + 1 {
 		case 1:
