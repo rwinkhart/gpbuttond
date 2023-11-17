@@ -15,8 +15,8 @@ const buttonCount = 17
 
 // TODO END EDIT ZONE (1/2, scroll down for second edit zone)
 
-// pin to key mapping, global
-var pinMap [10][2]int
+// line to key mapping - global
+var lineMap [10][2]int
 
 // create channel for signaling end of routineHold
 var exitChannel = make(chan bool)
@@ -56,7 +56,7 @@ func main() {
 	defer kbd.Close()
 
 	// check environment variables (settings)
-	// pin to key mapping - local
+	// line to key mapping - local
 
 	var mapEnv, mapPresent = os.LookupEnv("GPBD_MAP")
 	var mapEnvSplit []string
@@ -66,13 +66,26 @@ func main() {
 		pairCount = len(mapEnvSplit)
 	} else {
 		fmt.Printf("\nError: No pairings provided!\n\n"+
-			"GPIO pins must be mapped to keycodes through the setting of the GPBD_MAP environment variable.\n"+
+			"GPIO lines must be mapped to keycodes through the setting of the GPBD_MAP environment variable.\n"+
 			"The keycode for any given key can be found by using the widely available \"showkey\" command in a raw TTY.\n\n"+
 			"The format for setting GPBD_MAP is as follows:\n"+
-			"export GPBD_MAP=<GPIO pin #>:<decimal keycode>,<GPIO pin #>:<decimal keycode>, etc.\n\n"+
+			"export GPBD_MAP=<GPIO line #>:<decimal keycode>,<GPIO line #>:<decimal keycode>, etc.\n\n"+
 			"Example:\n"+
 			"export GPBD_MAP=19:103,6:108,26:105,5:28\n\n"+
-			"Note that this compiled version of gpbuttond only supports a maximum of %d pairings.\n"+
+			"Additional things to consider:\n\n"+
+			"LINE NUMBERING\n"+
+			"Note that gpbuttond uses the GPIO line numbering reported by \"/dev/gpiochip0\", which typically refers to\n"+
+			"the internal CPU/SoC numbering of the GPIO lines rather than the numbering as it relates to\n"+
+			"the physical layout of the pins on the board. Be sure you are using the correct numbering scheme!\n\n"+
+			"LINE PULL DIRECTION\n"+
+			"By default, it is likely your GPIO lines are not all pulled in the same direction.\n"+
+			"gpbuttond makes the assumption that all lines are pulled up by default.\n"+
+			"The process of matching this behavior varies between devices.\n\n"+
+			"On a Raspberry Pi, this can be done by modifying your config.txt file.\n"+
+			"For example, lines 5 and 6 can be pulled up by default with the following:\n"+
+			"gpio=5,6=pu\n\n"+
+			"MAXIMUM SUPPORTED BUTTONS\n"+
+			"Note that this compiled version of gpbuttond supports a maximum of %d line-to-button pairings.\n"+
 			"More can be easily added through simple modification of the source code.\n"+
 			"The lines to edit are clearly marked with \"// TODO\" comments.\n\n", buttonCount)
 		os.Exit(1)
@@ -83,62 +96,62 @@ func main() {
 		for i, num := range strings.Split(pair, ":") {
 			intConvert[i], _ = strconv.Atoi(num)
 		}
-		pinMap[i] = [2]int{intConvert[0], intConvert[1]}
+		lineMap[i] = [2]int{intConvert[0], intConvert[1]}
 	}
 
 	// begin edge detection - will call eventHandler whenever a watched GPIO line changes state
 	for i := 0; i < min(pairCount, buttonCount); i++ {
 		switch i + 1 {
 		case 1:
-			line1, _ := gpiod.RequestLine("gpiochip0", pinMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinMap[i][1])))
+			line1, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
 			defer line1.Close()
 		case 2:
-			line2, _ := gpiod.RequestLine("gpiochip0", pinMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinMap[i][1])))
+			line2, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
 			defer line2.Close()
 		case 3:
-			line3, _ := gpiod.RequestLine("gpiochip0", pinMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinMap[i][1])))
+			line3, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
 			defer line3.Close()
 		case 4:
-			line4, _ := gpiod.RequestLine("gpiochip0", pinMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinMap[i][1])))
+			line4, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
 			defer line4.Close()
 		case 5:
-			line5, _ := gpiod.RequestLine("gpiochip0", pinMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinMap[i][1])))
+			line5, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
 			defer line5.Close()
 		case 6:
-			line6, _ := gpiod.RequestLine("gpiochip0", pinMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinMap[i][1])))
+			line6, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
 			defer line6.Close()
 		case 7:
-			line7, _ := gpiod.RequestLine("gpiochip0", pinMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinMap[i][1])))
+			line7, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
 			defer line7.Close()
 		case 8:
-			line8, _ := gpiod.RequestLine("gpiochip0", pinMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinMap[i][1])))
+			line8, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
 			defer line8.Close()
 		case 9:
-			line9, _ := gpiod.RequestLine("gpiochip0", pinMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinMap[i][1])))
+			line9, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
 			defer line9.Close()
 		case 10:
-			line10, _ := gpiod.RequestLine("gpiochip0", pinMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinMap[i][1])))
+			line10, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
 			defer line10.Close()
 		case 11:
-			line11, _ := gpiod.RequestLine("gpiochip0", pinMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinMap[i][1])))
+			line11, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
 			defer line11.Close()
 		case 12:
-			line12, _ := gpiod.RequestLine("gpiochip0", pinMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinMap[i][1])))
+			line12, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
 			defer line12.Close()
 		case 13:
-			line13, _ := gpiod.RequestLine("gpiochip0", pinMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinMap[i][1])))
+			line13, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
 			defer line13.Close()
 		case 14:
-			line14, _ := gpiod.RequestLine("gpiochip0", pinMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinMap[i][1])))
+			line14, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
 			defer line14.Close()
 		case 15:
-			line15, _ := gpiod.RequestLine("gpiochip0", pinMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinMap[i][1])))
+			line15, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
 			defer line15.Close()
 		case 16:
-			line16, _ := gpiod.RequestLine("gpiochip0", pinMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinMap[i][1])))
+			line16, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
 			defer line16.Close()
 		case 17:
-			line17, _ := gpiod.RequestLine("gpiochip0", pinMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(pinMap[i][1])))
+			line17, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(20*time.Millisecond), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
 			defer line17.Close()
 			// TODO EDIT HERE TO ADD MORE BUTTONS (2/2)
 			// TODO END EDIT ZONE (2/2)
