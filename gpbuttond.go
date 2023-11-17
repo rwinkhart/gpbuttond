@@ -55,6 +55,17 @@ func main() {
 	// ensure closure of keyboard after program exits
 	defer kbd.Close()
 
+	// display version and licensing information
+	fmt.Print("\n================================================================================================\n\n" +
+		"gpbuttond v0.2.0\n\n" +
+		"This program is free software: you can redistribute it and/or modify it under the terms of\n" +
+		"version 3 (only) of the GNU General Public License as published by the Free Software Foundation.\n\n" +
+		"This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;\n" +
+		"without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n" +
+		"See the GNU General Public License for more details:\n" +
+		"https://opensource.org/licenses/GPL-3.0\n\n" +
+		"================================================================================================\n")
+
 	// check environment variables (settings)
 	// line to key mapping - local
 
@@ -65,7 +76,7 @@ func main() {
 		mapEnvSplit = strings.Split(mapEnv, ",")
 		pairCount = len(mapEnvSplit)
 	} else {
-		fmt.Printf("\nError: No pairings provided!\n\n"+
+		fmt.Printf("\nERROR: No pairings provided!\n\n"+
 			"GPIO lines must be mapped to keycodes through the setting of the GPBD_MAP environment variable.\n"+
 			"The keycode for any given key can be found by using the widely available \"showkey\" command in a raw TTY.\n\n"+
 			"The format for setting GPBD_MAP is as follows:\n"+
