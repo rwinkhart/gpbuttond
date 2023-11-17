@@ -171,6 +171,7 @@ func main() {
 
 	// run FOREVER >:)
 	for {
+		fmt.Print("\nThis program is a background daemon - run it with \"gpbuttond &\" to properly background it.\n")
 		time.Sleep(time.Hour)
 	}
 }
