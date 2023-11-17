@@ -18,6 +18,9 @@ const buttonCount = 17
 // line to key mapping - global
 var lineMap [10][2]int
 
+// repeat timer configuration - global
+var repeatDuration time.Duration
+
 // create channel for signaling end of routineHold
 var exitChannel = make(chan bool)
 
@@ -32,7 +35,7 @@ func routineHold(keycode int, inputChannel <-chan bool) {
 			return
 		default:
 			kbd.KeyPress(keycode)
-			time.Sleep(150 * time.Millisecond)
+			time.Sleep(repeatDuration)
 		}
 	}
 }
@@ -100,7 +103,8 @@ func main() {
 			" More can be easily added through simple modification of the source code.\n"+
 			" The lines to edit are clearly marked with \"// TODO\" comments.\n\n"+
 			"OTHER SUPPORTED CONFIGURATIONS (ENVIRONMENT VARIABLES)\n"+
-			" GPBD_DEBOUNCE can optionally be set to apply a custom debounce time. Set equal to any integer (measured in milliseconds)\n\n", buttonCount)
+			" GPBD_DEBOUNCE can optionally be set to apply a custom debounce time. Set equal to any integer (measured in milliseconds).\n"+
+			" GPBD_REPEAT can optionally be set to apply a custom timer before registering multiple keystrokes.\n\n", buttonCount)
 		os.Exit(1)
 	}
 
@@ -112,14 +116,23 @@ func main() {
 		lineMap[i] = [2]int{intConvert[0], intConvert[1]}
 	}
 
-	// debounce (time button must be held before it is registered as a keypress, in milliseconds)
+	// debounce timer configuration (time button must be held before it is registered as a keypress, in milliseconds)
 	var mapEnv2, mapPresent2 = os.LookupEnv("GPBD_DEBOUNCE")
 	var debounceDuration time.Duration
 	if mapPresent2 {
 		debounceMultiplier, _ := strconv.Atoi(mapEnv2)
 		debounceDuration = time.Duration(debounceMultiplier) * time.Millisecond
 	} else {
-		debounceDuration = 20 * time.Millisecond // default to 20 millisecond debounce
+		debounceDuration = 20 * time.Millisecond // default to 20-millisecond debounce timer
+	}
+
+	// repeat timer configuration - local
+	var mapEnv3, mapPresent3 = os.LookupEnv("GPBD_REPEAT")
+	if mapPresent3 {
+		repeatMultiplier, _ := strconv.Atoi(mapEnv3)
+		repeatDuration = time.Duration(repeatMultiplier) * time.Millisecond
+	} else {
+		repeatDuration = 150 * time.Millisecond // default to 150-millisecond repeat timer
 	}
 
 	// begin edge detection - will call eventHandler whenever a watched GPIO line changes state
