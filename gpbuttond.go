@@ -109,7 +109,7 @@ func main() {
 			" The lines to edit are clearly marked with \"// TODO\" comments.\n\n"+
 			"OTHER SUPPORTED CONFIGURATIONS (ENVIRONMENT VARIABLES)\n"+
 			" GPBD_DEBOUNCE can optionally be set to apply a custom debounce time. Set equal to any integer (measured in milliseconds).\n"+
-			" GPBD_REPEAT can optionally be set to apply a custom timer before registering multiple keystrokes.\n\n", buttonCount)
+			" GPBD_REPEAT can optionally be set to alter the time before registering multiple keystrokes when a button is held down. Set equal to any integer (measured in milliseconds).\n\n", buttonCount)
 		os.Exit(1)
 	}
 
