@@ -25,6 +25,7 @@ var repeatDuration time.Duration
 // create channel for signaling end of routineHold
 var exitChannel = make(chan bool)
 
+// create sync.Mutex object for preventing routineHold conflicts
 var mutex = &sync.Mutex{}
 
 // create virtual uinput keyboard for simulating keystrokes
@@ -46,8 +47,10 @@ func routineHold(keycode int, inputChannel <-chan bool) {
 // called whenever a GPIO event is detected on a watched line - uses routineHold as a Go routine to repeat keystrokes for as long as buttons are held down
 func eventHandler(keycode int) func(_ gpiod.LineEvent) {
 	return func(evt gpiod.LineEvent) {
+		// set mutex.Lock() to prevent routineHold conflicts
 		mutex.Lock()
 		defer mutex.Unlock()
+
 		if evt.Type == gpiod.LineEventRisingEdge { // button release
 			// send signal to exit Go routine (stops repeating keystrokes)
 			exitChannel <- true
