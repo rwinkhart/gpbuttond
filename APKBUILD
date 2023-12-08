@@ -12,7 +12,7 @@ makedepends="go"
 source="$pkgname-v$pkgver.tar.gz::https://github.com/rwinkhart/gpbuttond/archive/refs/tags/v$pkgver.tar.gz"
 
 build() {
-        cd "$srcdir"/gpbuttond-v"$pkgver"
+        cd "$srcdir"/gpbuttond-"$pkgver"
         rm go.mod
         go mod init main
         go mod tidy
@@ -20,7 +20,7 @@ build() {
 }
 
 package() {
-        cd "$srcdir"/gpbuttond-v"$pkgver"
+        cd "$srcdir"/gpbuttond-"$pkgver"
         install -Dm755 gpbuttond ${pkgdir}/usr/bin/gpbuttond
 }
 
