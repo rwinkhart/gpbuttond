@@ -17,7 +17,7 @@ const buttonCount = 17
 // TODO END EDIT ZONE (1/2, scroll down for second edit zone)
 
 // line to key mapping - global
-var lineMap [buttonCount][2]int
+var lineMap [buttonCount][3]int
 
 // repeat timer configuration - global
 var repeatDuration time.Duration
@@ -31,11 +31,17 @@ var mutex = &sync.Mutex{}
 // create virtual uinput keyboard for simulating keystrokes
 var kbd, _ = uinput.CreateKeyboard("/dev/uinput", []byte("gpbuttondvirtualkbd"))
 
+// meant to run as a Go routine (launched from eventHandler) - acts as a timer to determine whether a GPIO button has been held for long enough to actuate the specified long keycode
+func routineLongpressTimer(timerChannel chan<- bool) {
+	time.Sleep(500 * time.Millisecond) // TODO custom longpress timer support
+	timerChannel <- true
+}
+
 // meant to run as a Go routine (launched from eventHandler) - repeats keystroke until GPIO button is no longer held down
-func routineHold(keycode int, inputChannel <-chan bool) {
+func routineHoldShort(keycode int, exitChannel <-chan bool) {
 	for {
 		select {
-		case <-inputChannel:
+		case <-exitChannel:
 			return
 		default:
 			kbd.KeyPress(keycode)
@@ -44,8 +50,27 @@ func routineHold(keycode int, inputChannel <-chan bool) {
 	}
 }
 
+// meant to run as a Go routine (launched from eventHandler) - executes a keystoke based on a timer
+func routineHoldLong(keycode int, longKeycode int, exitChannel chan bool) {
+	var timerChannel = make(chan bool)
+	go routineLongpressTimer(timerChannel)
+	for {
+		select {
+		case <-exitChannel:
+			select {
+			case <-timerChannel:
+				kbd.KeyPress(longKeycode) // TODO allow registering long keycode as soon as timer expires, rather than once the button is let go of
+				return
+			default:
+				kbd.KeyPress(keycode)
+				return
+			}
+		}
+	}
+}
+
 // called whenever a GPIO event is detected on a watched line - uses routineHold as a Go routine to repeat keystrokes for as long as buttons are held down
-func eventHandler(keycode int) func(_ gpiod.LineEvent) {
+func eventHandler(keycode int, longKeycode int) func(_ gpiod.LineEvent) {
 	return func(evt gpiod.LineEvent) {
 		// set mutex.Lock() to prevent routineHold conflicts
 		mutex.Lock()
@@ -56,8 +81,13 @@ func eventHandler(keycode int) func(_ gpiod.LineEvent) {
 			exitChannel <- true
 
 		} else if evt.Type == gpiod.LineEventFallingEdge { // button press
-			// launch Go routine to repeat keystrokes until a LineEventRisingEdge event is received
-			go routineHold(keycode, exitChannel)
+			if longKeycode == 0 { // if no long keycode was specified
+				// launch Go routine to repeat keystrokes until a LineEventRisingEdge event is received
+				go routineHoldShort(keycode, exitChannel)
+			} else { // if a long keycode was specified
+				// launch a Go routine to execute a keystroke based on a timer
+				go routineHoldLong(keycode, longKeycode, exitChannel)
+			}
 		}
 	}
 }
@@ -82,18 +112,18 @@ func main() {
 	// line to key mapping - local
 	var mapEnv1, mapPresent1 = os.LookupEnv("GPBD_MAP")
 	var mapEnv1Split []string
-	var pairCount int
+	var mapCount int
 	if mapPresent1 {
 		mapEnv1Split = strings.Split(mapEnv1, ",")
-		pairCount = len(mapEnv1Split)
+		mapCount = len(mapEnv1Split)
 	} else {
-		fmt.Printf("\nERROR: No pairings provided!\n\n"+
+		fmt.Printf("\nERROR: No mappings provided!\n\n"+
 			"GPIO lines must be mapped to keycodes through the setting of the GPBD_MAP environment variable.\n"+
 			"The keycode for any given key can be found by using the widely available \"showkey\" command in a raw TTY.\n\n"+
 			"The format for setting GPBD_MAP is as follows:\n"+
-			" export GPBD_MAP=<GPIO line #>:<decimal keycode>,<GPIO line #>:<decimal keycode>, etc.\n\n"+
+			" export GPBD_MAP=<GPIO line #>:<decimal keycode>:[optional long press decimal keycode],<GPIO line #>:<decimal keycode>:[optional long press decimal keycode], etc.\n\n"+
 			"Example:\n"+
-			" export GPBD_MAP=19:103,6:108,26:105,5:28\n\n"+
+			" export GPBD_MAP=19:103:1,6:108,26:105,5:28\n\n"+
 			"Additional things to consider:\n\n"+
 			"LINE NUMBERING\n"+
 			" Note that gpbuttond uses the GPIO line numbering reported by \"/dev/gpiochip0\", which typically refers to\n"+
@@ -107,7 +137,7 @@ func main() {
 			" For example, lines 5 and 6 can be pulled up by default with the following:\n"+
 			"  gpio=5,6=pu\n\n"+
 			"MAXIMUM SUPPORTED BUTTONS\n"+
-			" Note that this compiled version of gpbuttond supports a maximum of %d line-to-button pairings.\n"+
+			" Note that this compiled version of gpbuttond supports a maximum of %d line-to-button mappings.\n"+
 			" More can be easily added through simple modification of the source code.\n"+
 			" The lines to edit are clearly marked with \"// TODO\" comments.\n\n"+
 			"OTHER SUPPORTED CONFIGURATIONS (ENVIRONMENT VARIABLES)\n"+
@@ -116,12 +146,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	for i, pair := range mapEnv1Split {
-		var intConvert [2]int
-		for i, num := range strings.Split(pair, ":") {
+	for i, mapp := range mapEnv1Split {
+		var intConvert [3]int
+		for i, num := range strings.Split(mapp, ":") {
 			intConvert[i], _ = strconv.Atoi(num)
 		}
-		lineMap[i] = [2]int{intConvert[0], intConvert[1]}
+		lineMap[i] = [3]int{intConvert[0], intConvert[1], intConvert[2]}
 	}
 
 	// debounce timer configuration (time button must be held before it is registered as a keystroke, in milliseconds)
@@ -144,58 +174,58 @@ func main() {
 	}
 
 	// begin edge detection - will call eventHandler whenever a watched GPIO line changes state
-	for i := 0; i < min(pairCount, buttonCount); i++ {
+	for i := 0; i < min(mapCount, buttonCount); i++ {
 		switch i + 1 {
 		case 1:
-			line1, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
+			line1, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line1.Close()
 		case 2:
-			line2, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
+			line2, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line2.Close()
 		case 3:
-			line3, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
+			line3, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line3.Close()
 		case 4:
-			line4, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
+			line4, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line4.Close()
 		case 5:
-			line5, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
+			line5, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line5.Close()
 		case 6:
-			line6, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
+			line6, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line6.Close()
 		case 7:
-			line7, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
+			line7, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line7.Close()
 		case 8:
-			line8, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
+			line8, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line8.Close()
 		case 9:
-			line9, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
+			line9, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line9.Close()
 		case 10:
-			line10, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
+			line10, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line10.Close()
 		case 11:
-			line11, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
+			line11, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line11.Close()
 		case 12:
-			line12, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
+			line12, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line12.Close()
 		case 13:
-			line13, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
+			line13, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line13.Close()
 		case 14:
-			line14, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
+			line14, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line14.Close()
 		case 15:
-			line15, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
+			line15, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line15.Close()
 		case 16:
-			line16, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
+			line16, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line16.Close()
 		case 17:
-			line17, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1])))
+			line17, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line17.Close()
 			// TODO EDIT HERE TO ADD MORE BUTTONS (2/2)
 			// TODO END EDIT ZONE (2/2)
