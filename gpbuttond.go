@@ -17,7 +17,7 @@ const buttonCount = 17
 // TODO END EDIT ZONE (1/2, scroll down for second edit zone)
 
 // line to key mapping - global
-var lineMap [10][2]int
+var lineMap [buttonCount][2]int
 
 // repeat timer configuration - global
 var repeatDuration time.Duration
