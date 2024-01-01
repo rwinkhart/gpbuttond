@@ -50,21 +50,24 @@ func routineHoldShort(keycode int, exitChannel <-chan bool) {
 	}
 }
 
-// meant to run as a Go routine (launched from eventHandler) - executes a keystoke based on a timer
-func routineHoldLong(keycode int, longKeycode int, exitChannel chan bool) {
+// meant to run as a Go routine (launched from eventHandler) - executes a keystroke based on a timer
+func routineHoldLong(keycode int, longKeycode int, exitChannel <-chan bool) {
 	var timerChannel = make(chan bool)
+	var timerTriggered bool
+
+	// launch an additional Go routine to track if the button has been held long enough to register the long keycode
 	go routineLongpressTimer(timerChannel)
+
 	for {
 		select {
 		case <-exitChannel:
-			select {
-			case <-timerChannel:
-				kbd.KeyPress(longKeycode) // TODO allow registering long keycode as soon as timer expires, rather than once the button is let go of
-				return
-			default:
+			if !timerTriggered { // only run if the long keycode has not been executed
 				kbd.KeyPress(keycode)
-				return
 			}
+			return
+		case <-timerChannel:
+			kbd.KeyPress(longKeycode)
+			timerTriggered = true
 		}
 	}
 }
