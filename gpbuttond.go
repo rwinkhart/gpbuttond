@@ -67,15 +67,15 @@ func main() {
 	defer kbd.Close()
 
 	// display version and licensing information
-	fmt.Print("\n================================================================================================\n\n" +
-		"gpbuttond v0.2.1 - Copyright 2023 (Randall Winkhart) - https://github.com/rwinkhart/gpbuttond\n\n" +
+	fmt.Print("\n==================================================================================================\n\n" +
+		"gpbuttond v0.2.2 - Copyright 2023-2024 (Randall Winkhart) - https://github.com/rwinkhart/gpbuttond\n\n" +
 		"This program is free software: you can redistribute it and/or modify it under the terms of\n" +
 		"version 3 (only) of the GNU General Public License as published by the Free Software Foundation.\n\n" +
 		"This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;\n" +
 		"without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n" +
 		"See the GNU General Public License for more details:\n" +
 		"https://opensource.org/licenses/GPL-3.0\n\n" +
-		"================================================================================================\n")
+		"==================================================================================================\n")
 
 	// check environment variables (settings)
 
