@@ -22,6 +22,9 @@ var lineMap [buttonCount][3]int
 // repeat timer configuration - global
 var repeatDuration time.Duration
 
+// long press timer configuration - global
+var longPressDuration time.Duration
+
 // create channel for signaling end of routineHold
 var exitChannel = make(chan bool)
 
@@ -31,9 +34,9 @@ var mutex = &sync.Mutex{}
 // create virtual uinput keyboard for simulating keystrokes
 var kbd, _ = uinput.CreateKeyboard("/dev/uinput", []byte("gpbuttondvirtualkbd"))
 
-// meant to run as a Go routine (launched from eventHandler) - acts as a timer to determine whether a GPIO button has been held for long enough to actuate the specified long keycode
+// meant to run as a Go routine (launched from routineHoldLong) - acts as a timer to determine whether a GPIO button has been held for long enough to actuate the specified long keycode
 func routineLongpressTimer(timerChannel chan<- bool) {
-	time.Sleep(500 * time.Millisecond) // TODO custom longpress timer support
+	time.Sleep(longPressDuration)
 	timerChannel <- true
 }
 
@@ -144,6 +147,7 @@ func main() {
 			" More can be easily added through simple modification of the source code.\n"+
 			" The lines to edit are clearly marked with \"// TODO\" comments.\n\n"+
 			"OTHER SUPPORTED CONFIGURATIONS (ENVIRONMENT VARIABLES)\n"+
+			" GPBD_LONG can optionally be set to alter how long a button must be held for a long press to be registered. Set equal to any integer (measured in milliseconds).\n"+
 			" GPBD_DEBOUNCE can optionally be set to apply a custom debounce time. Set equal to any integer (measured in milliseconds).\n"+
 			" GPBD_REPEAT can optionally be set to alter the time before registering multiple keystrokes when a button is held down. Set equal to any integer (measured in milliseconds).\n\n", buttonCount)
 		os.Exit(1)
@@ -174,6 +178,15 @@ func main() {
 		repeatDuration = time.Duration(repeatMultiplier) * time.Millisecond
 	} else {
 		repeatDuration = 150 * time.Millisecond // default to 150-millisecond repeat timer
+	}
+
+	// long press timer configuration - local
+	var mapEnv4, mapPresent4 = os.LookupEnv("GPBD_LONG")
+	if mapPresent4 {
+		longPressMultiplier, _ := strconv.Atoi(mapEnv4)
+		longPressDuration = time.Duration(longPressMultiplier) * time.Millisecond
+	} else {
+		longPressDuration = 500 * time.Millisecond // default to 500-millisecond long press timer
 	}
 
 	// begin edge detection - will call eventHandler whenever a watched GPIO line changes state
