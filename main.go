@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/bendahl/uinput"
-	"github.com/warthog618/gpiod"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/bendahl/uinput"
+	gpio "github.com/warthog618/go-gpiocdev"
 )
 
 // TODO EDIT HERE TO ADD MORE BUTTONS (1/2, scroll down for second edit zone)
@@ -76,17 +77,17 @@ func routineHoldLong(keycode int, longKeycode int, exitChannel <-chan bool) {
 }
 
 // called whenever a GPIO event is detected on a watched line - uses routineHold as a Go routine to repeat keystrokes for as long as buttons are held down
-func eventHandler(keycode int, longKeycode int) func(_ gpiod.LineEvent) {
-	return func(evt gpiod.LineEvent) {
+func eventHandler(keycode int, longKeycode int) func(_ gpio.LineEvent) {
+	return func(evt gpio.LineEvent) {
 		// set mutex.Lock() to prevent routineHold conflicts
 		mutex.Lock()
 		defer mutex.Unlock()
 
-		if evt.Type == gpiod.LineEventRisingEdge { // button release
+		if evt.Type == gpio.LineEventRisingEdge { // button release
 			// send signal to exit Go routine (stops repeating keystrokes)
 			exitChannel <- true
 
-		} else if evt.Type == gpiod.LineEventFallingEdge { // button press
+		} else if evt.Type == gpio.LineEventFallingEdge { // button press
 			if longKeycode == 0 { // if no long keycode was specified
 				// launch Go routine to repeat keystrokes until a LineEventRisingEdge event is received
 				go routineHoldShort(keycode, exitChannel)
@@ -193,55 +194,55 @@ func main() {
 	for i := 0; i < min(mapCount, buttonCount); i++ {
 		switch i + 1 {
 		case 1:
-			line1, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
+			line1, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line1.Close()
 		case 2:
-			line2, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
+			line2, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line2.Close()
 		case 3:
-			line3, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
+			line3, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line3.Close()
 		case 4:
-			line4, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
+			line4, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line4.Close()
 		case 5:
-			line5, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
+			line5, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line5.Close()
 		case 6:
-			line6, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
+			line6, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line6.Close()
 		case 7:
-			line7, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
+			line7, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line7.Close()
 		case 8:
-			line8, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
+			line8, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line8.Close()
 		case 9:
-			line9, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
+			line9, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line9.Close()
 		case 10:
-			line10, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
+			line10, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line10.Close()
 		case 11:
-			line11, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
+			line11, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line11.Close()
 		case 12:
-			line12, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
+			line12, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line12.Close()
 		case 13:
-			line13, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
+			line13, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line13.Close()
 		case 14:
-			line14, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
+			line14, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line14.Close()
 		case 15:
-			line15, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
+			line15, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line15.Close()
 		case 16:
-			line16, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
+			line16, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line16.Close()
 		case 17:
-			line17, _ := gpiod.RequestLine("gpiochip0", lineMap[i][0], gpiod.WithPullUp, gpiod.WithBothEdges, gpiod.WithDebounce(debounceDuration), gpiod.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
+			line17, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
 			defer line17.Close()
 			// TODO EDIT HERE TO ADD MORE BUTTONS (2/2)
 			// TODO END EDIT ZONE (2/2)
