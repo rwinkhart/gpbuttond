@@ -12,13 +12,8 @@ import (
 	gpio "github.com/warthog618/go-gpiocdev"
 )
 
-// TODO EDIT HERE TO ADD MORE BUTTONS (1/2, scroll down for second edit zone)
-const buttonCount = 17
-
-// TODO END EDIT ZONE (1/2, scroll down for second edit zone)
-
 // line to key mapping - global
-var lineMap [buttonCount][3]int
+var lineMap [][3]int
 
 // repeat timer configuration - global
 var repeatDuration time.Duration
@@ -105,7 +100,7 @@ func main() {
 
 	// display version and licensing information
 	fmt.Print("\n==================================================================================================\n\n" +
-		"gpbuttond v0.2.2 - Copyright 2023-2024 (Randall Winkhart) - https://github.com/rwinkhart/gpbuttond\n\n" +
+		"gpbuttond v0.3.1 - Copyright 2023-2024 (Randall Winkhart) - https://github.com/rwinkhart/gpbuttond\n\n" +
 		"This program is free software: you can redistribute it and/or modify it under the terms of\n" +
 		"version 3 (only) of the GNU General Public License as published by the Free Software Foundation.\n\n" +
 		"This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;\n" +
@@ -124,42 +119,38 @@ func main() {
 		mapEnv1Split = strings.Split(mapEnv1, ",")
 		mapCount = len(mapEnv1Split)
 	} else {
-		fmt.Printf("\nERROR: No mappings provided!\n\n"+
-			"GPIO lines must be mapped to keycodes through the setting of the GPBD_MAP environment variable.\n"+
-			"The keycode for any given key can be found by using the widely available \"showkey\" command in a raw TTY.\n\n"+
-			"The format for setting GPBD_MAP is as follows:\n"+
-			" export GPBD_MAP=<GPIO line #>:<decimal keycode>:[optional long press decimal keycode],<GPIO line #>:<decimal keycode>:[optional long press decimal keycode], etc.\n\n"+
-			"Example:\n"+
-			" export GPBD_MAP=19:103:1,6:108,26:105,5:28\n\n"+
-			"Additional things to consider:\n\n"+
-			"LINE NUMBERING\n"+
-			" Note that gpbuttond uses the GPIO line numbering reported by \"/dev/gpiochip0\", which typically refers to\n"+
-			" the internal CPU/SoC numbering of the GPIO lines rather than the numbering as it relates to\n"+
-			" the physical layout of the pins on the board. Be sure you are using the correct numbering scheme!\n\n"+
-			"LINE PULL DIRECTION\n"+
-			" By default, it is likely your GPIO lines are not all pulled in the same direction.\n"+
-			" gpbuttond makes the assumption that all lines are pulled up by default.\n"+
-			" The process of matching this behavior varies between devices.\n\n"+
-			" On a Raspberry Pi, this can be done by modifying your config.txt file.\n"+
-			" For example, lines 5 and 6 can be pulled up by default with the following:\n"+
-			"  gpio=5,6=pu\n\n"+
-			"MAXIMUM SUPPORTED BUTTONS\n"+
-			" Note that this compiled version of gpbuttond supports a maximum of %d line-to-button mappings.\n"+
-			" More can be easily added through simple modification of the source code.\n"+
-			" The lines to edit are clearly marked with \"// TODO\" comments.\n\n"+
-			"OTHER SUPPORTED CONFIGURATIONS (ENVIRONMENT VARIABLES)\n"+
-			" GPBD_LONG can optionally be set to alter how long a button must be held for a long press to be registered. Set equal to any integer (measured in milliseconds).\n"+
-			" GPBD_DEBOUNCE can optionally be set to apply a custom debounce time. Set equal to any integer (measured in milliseconds).\n"+
-			" GPBD_REPEAT can optionally be set to alter the time before registering multiple keystrokes when a button is held down. Set equal to any integer (measured in milliseconds).\n\n", buttonCount)
+		fmt.Print("\nERROR: No mappings provided!\n\n" +
+			"GPIO lines must be mapped to keycodes through the setting of the GPBD_MAP environment variable.\n" +
+			"The keycode for any given key can be found by using the widely available \"showkey\" command in a raw TTY.\n\n" +
+			"The format for setting GPBD_MAP is as follows:\n" +
+			" export GPBD_MAP=<GPIO line #>:<decimal keycode>:[optional long press decimal keycode],<GPIO line #>:<decimal keycode>:[optional long press decimal keycode], etc.\n\n" +
+			"Example:\n" +
+			" export GPBD_MAP=19:103:1,6:108,26:105,5:28\n\n" +
+			"Additional things to consider:\n\n" +
+			"LINE NUMBERING\n" +
+			" Note that gpbuttond uses the GPIO line numbering reported by \"/dev/gpiochip0\", which typically refers to\n" +
+			" the internal CPU/SoC numbering of the GPIO lines rather than the numbering as it relates to\n" +
+			" the physical layout of the pins on the board. Be sure you are using the correct numbering scheme!\n\n" +
+			"LINE PULL DIRECTION\n" +
+			" By default, it is likely your GPIO lines are not all pulled in the same direction.\n" +
+			" gpbuttond makes the assumption that all lines are pulled up by default.\n" +
+			" The process of matching this behavior varies between devices.\n\n" +
+			" On a Raspberry Pi, this can be done by modifying your config.txt file.\n" +
+			" For example, lines 5 and 6 can be pulled up by default with the following:\n" +
+			"  gpio=5,6=pu\n\n" +
+			"OTHER SUPPORTED CONFIGURATIONS (ENVIRONMENT VARIABLES)\n" +
+			" GPBD_LONG can optionally be set to alter how long a button must be held for a long press to be registered. Set equal to any integer (measured in milliseconds).\n" +
+			" GPBD_DEBOUNCE can optionally be set to apply a custom debounce time. Set equal to any integer (measured in milliseconds).\n" +
+			" GPBD_REPEAT can optionally be set to alter the time before registering multiple keystrokes when a button is held down. Set equal to any integer (measured in milliseconds).\n\n")
 		os.Exit(1)
 	}
 
-	for i, mapp := range mapEnv1Split {
+	for _, mapTrio := range mapEnv1Split {
 		var intConvert [3]int
-		for i, num := range strings.Split(mapp, ":") {
+		for i, num := range strings.Split(mapTrio, ":") {
 			intConvert[i], _ = strconv.Atoi(num)
 		}
-		lineMap[i] = [3]int{intConvert[0], intConvert[1], intConvert[2]}
+		lineMap = append(lineMap, [3]int{intConvert[0], intConvert[1], intConvert[2]})
 	}
 
 	// debounce timer configuration (time button must be held before it is registered as a keystroke, in milliseconds)
@@ -191,62 +182,10 @@ func main() {
 	}
 
 	// begin edge detection - will call eventHandler whenever a watched GPIO line changes state
-	for i := 0; i < min(mapCount, buttonCount); i++ {
-		switch i + 1 {
-		case 1:
-			line1, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
-			defer line1.Close()
-		case 2:
-			line2, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
-			defer line2.Close()
-		case 3:
-			line3, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
-			defer line3.Close()
-		case 4:
-			line4, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
-			defer line4.Close()
-		case 5:
-			line5, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
-			defer line5.Close()
-		case 6:
-			line6, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
-			defer line6.Close()
-		case 7:
-			line7, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
-			defer line7.Close()
-		case 8:
-			line8, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
-			defer line8.Close()
-		case 9:
-			line9, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
-			defer line9.Close()
-		case 10:
-			line10, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
-			defer line10.Close()
-		case 11:
-			line11, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
-			defer line11.Close()
-		case 12:
-			line12, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
-			defer line12.Close()
-		case 13:
-			line13, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
-			defer line13.Close()
-		case 14:
-			line14, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
-			defer line14.Close()
-		case 15:
-			line15, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
-			defer line15.Close()
-		case 16:
-			line16, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
-			defer line16.Close()
-		case 17:
-			line17, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
-			defer line17.Close()
-			// TODO EDIT HERE TO ADD MORE BUTTONS (2/2)
-			// TODO END EDIT ZONE (2/2)
-		}
+	var gpioLines []*gpio.Line
+	for i := 0; i < mapCount; i++ {
+		gpioLine, _ := gpio.RequestLine("gpiochip0", lineMap[i][0], gpio.WithPullUp, gpio.WithBothEdges, gpio.WithDebounce(debounceDuration), gpio.WithEventHandler(eventHandler(lineMap[i][1], lineMap[i][2])))
+		gpioLines = append(gpioLines, gpioLine)
 	}
 
 	// run FOREVER >:)
